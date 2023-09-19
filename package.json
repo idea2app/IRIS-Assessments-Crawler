@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "type": "module",
   "source": "src/index.ts",
-  "bin": "dist/",
   "dependencies": {
     "jsdom": "^22.1.0",
     "zx": "^7.2.3"
