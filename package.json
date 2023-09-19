@@ -1,0 +1,15 @@
+{
+  "name": "@idea2app/IRIS-Assessments-Crawler",
+  "version": "1.0.0",
+  "type": "module",
+  "source": "src/index.ts",
+  "dependencies": {
+    "jsdom": "^22.1.0",
+    "zx": "^7.2.3"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^21.1.3",
+    "tsx": "^3.12.10",
+    "typescript": "^5.2.2"
+  }
+}
