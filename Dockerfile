@@ -4,6 +4,7 @@ USER root
 
 RUN npm rm yarn -g
 RUN npm i pnpm -g
+RUN apt update && apt install -y ca-certificates wget
 
 RUN mkdir /home/node/app
 WORKDIR /home/node/app
