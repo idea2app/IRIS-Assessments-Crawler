@@ -12,8 +12,6 @@
 pnpm crawl
 ```
 
-command-let cmd-let
-
 2. 在本地启动服务器，查看效果
 
 ```shell

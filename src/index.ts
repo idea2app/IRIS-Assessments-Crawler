@@ -36,6 +36,7 @@ async function modifySubPageURLs(filePath: string, selector: string) {
   } = await JSDOM.fromFile(filePath);
   [...document.querySelectorAll<HTMLAnchorElement>(selector)].map((tag) => {
     const { href, origin } = tag;
+
     tag.setAttribute('href', href.slice(origin.length));
   });
   await fs.outputFile(filePath, document.documentElement.outerHTML);
@@ -59,10 +60,12 @@ for (const file of files) {
   if (!/\.html?$/.test(name)) continue;
 
   const linkList = await getExtras(newName, 'tr > td > a');
+
   for (const link of linkList) await downloadHTML(link, true);
 }
 
 const subPageFiles = await fs.readdir('ChemicalLanding');
 
 cd('ChemicalLanding');
+
 for (const file of subPageFiles) await modifySubPageURLs(file, 'li > .under');
