@@ -1,41 +1,50 @@
 #! /usr/bin/env node
 
-import { $, cd } from 'zx';
-import { promises } from 'fs';
-import { JSDOM } from 'jsdom';
+import { JSDOM } from "jsdom";
+import { $, argv, cd, fs, path } from "zx";
 
-const url = 'https://iris.epa.gov/AtoZ/?list_type=alpha';
+const [url, folder] = argv._;
 
-await $`rm -rf public`;
-await $`mkdir -p public`;
-cd('public');
-await $`wget -c -r -npH -k -p ${url}`;
-await $`mv AtoZ/index.html\?list_type=alpha AtoZ/index.html`;
+const downloadHTML = (url: string, fixName = false) =>
+  $`wget -c -r -npH -k -p ${fixName ? "-E" : ""} ${url}`;
 
-const linkLists = await (async () => {
+async function getSubPageURLs(filePath: string, selector: string) {
   const {
     window: { document },
-  } = await JSDOM.fromFile('AtoZ/index.html');
-  const urls = [
-    ...document.querySelectorAll<HTMLAnchorElement>('tr > td:nth-child(2) > a'),
-  ].map((tag) => {
-    const url = tag.href;
-    tag.setAttribute(
-      'href',
-      url.replace('https://iris.epa.gov/', '/') + '.html'
-    );
+  } = await JSDOM.fromFile(filePath);
 
-    return url;
-  });
-  await promises.writeFile(
-    'AtoZ/index.html',
-    document.documentElement.outerHTML
+  const urls = [...document.querySelectorAll<HTMLAnchorElement>(selector)].map(
+    (tag) => {
+      const { href, origin } = tag;
+
+      tag.setAttribute("href", href.slice(origin.length) + ".html");
+
+      return href;
+    }
   );
-  return urls;
-})();
+  await fs.outputFile(filePath, document.documentElement.outerHTML);
 
-for (const link of linkLists) {
-  await $`wget -c -r -npH -k -p ${link}`;
-  const path = link.replace('https://iris.epa.gov/', '');
-  await $`mv ${path} ${path}.html`;
+  return urls;
+}
+
+await $`rm -rf ${folder}`;
+await $`mkdir -p ${folder}`;
+cd(folder);
+await downloadHTML(url);
+
+const root = new URL(url).pathname.slice(1);
+const files = await fs.readdir(root);
+
+for (const file of files) {
+  const [name, useless] = file.split("?");
+  const oldName = path.join(root, file),
+    newName = path.join(root, name);
+
+  if (useless) await $`mv ${oldName} ${newName}`;
+
+  if (!/\.html?$/.test(name)) continue;
+
+  const linkList = await getSubPageURLs(newName, "tr > td:nth-child(2) > a");
+
+  for (const link of linkList) await downloadHTML(link, true);
 }
