@@ -63,4 +63,6 @@ for (const file of files) {
 }
 
 const subPageFiles = await fs.readdir('ChemicalLanding');
+
+cd('ChemicalLanding');
 for (const file of subPageFiles) await modifySubPageURLs(file, 'li > .under');
