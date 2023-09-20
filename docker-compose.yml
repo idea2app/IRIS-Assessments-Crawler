@@ -1,0 +1,26 @@
+version: "3"
+
+networks:
+  idea2app:
+
+services:
+  iris-assessments-crawler:
+    image: idea2app/iris-assessments-crawler
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+    ports:
+      - 8080:8080
+    networks:
+      - idea2app
+    restart: always
+  caddy:
+    depends_on:
+      - iris-assessments-crawler
+    image: caddy
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      - idea2app
+    command: caddy reverse-proxy --from iris.idea2.app --to iris-assessments-crawler:8080
