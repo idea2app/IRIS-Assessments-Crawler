@@ -8,7 +8,7 @@ const [url, folder] = argv._;
 const downloadHTML = (url: string, fixName = false) =>
   $`wget -c -r -npH -k -p ${fixName ? '-E' : ''} ${url}`;
 
-async function getExtras(filePath: string, selector: string, isURLs = true) {
+async function getExtras(filePath: string, selector: string) {
   const {
     window: { document },
   } = await JSDOM.fromFile(filePath);
@@ -20,7 +20,7 @@ async function getExtras(filePath: string, selector: string, isURLs = true) {
 
     tag.setAttribute(
       'href',
-      isURLs ? href.slice(origin.length) + '.html' : href.slice(origin.length)
+      href.slice(origin.length) + (path.parse(href).ext ? '' : '.html')
     );
 
     return href;
@@ -28,6 +28,17 @@ async function getExtras(filePath: string, selector: string, isURLs = true) {
   await fs.outputFile(filePath, document.documentElement.outerHTML);
 
   return elementLists;
+}
+
+async function modifySubPageURLs(filePath: string, selector: string) {
+  const {
+    window: { document },
+  } = await JSDOM.fromFile(filePath);
+  [...document.querySelectorAll<HTMLAnchorElement>(selector)].map((tag) => {
+    const { href, origin } = tag;
+    tag.setAttribute('href', href.slice(origin.length));
+  });
+  await fs.outputFile(filePath, document.documentElement.outerHTML);
 }
 
 await $`rm -rf ${folder}`;
@@ -47,26 +58,9 @@ for (const file of files) {
 
   if (!/\.html?$/.test(name)) continue;
 
-  //Get list of PDFs on the 5th column
-  const FirstColumnOfPDFFiles = await getExtras(
-    newName,
-    'tr > td:nth-child(5) > a',
-    false
-  );
-
-  for (const pdf of FirstColumnOfPDFFiles) await downloadHTML(pdf, true);
-
-  //Get list of PDFs on the 6th column
-  const SecondColumnOfPDFFiles = await getExtras(
-    newName,
-    'tr > td:nth-child(6) > a',
-    false
-  );
-
-  for (const pdf of SecondColumnOfPDFFiles) await downloadHTML(pdf, true);
-
-  //Get sub page URLs
-  const linkList = await getExtras(newName, 'tr > td:nth-child(2) > a');
-
+  const linkList = await getExtras(newName, 'tr > td > a');
   for (const link of linkList) await downloadHTML(link, true);
 }
+
+const subPageFiles = await fs.readdir('ChemicalLanding');
+for (const file of subPageFiles) await modifySubPageURLs(file, 'li > .under');
