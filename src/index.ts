@@ -34,11 +34,13 @@ async function modifySubPageURLs(filePath: string, selector: string) {
   const {
     window: { document },
   } = await JSDOM.fromFile(filePath);
-  [...document.querySelectorAll<HTMLAnchorElement>(selector)].map((tag) => {
+
+  for (const tag of document.querySelectorAll<HTMLAnchorElement>(selector)) {
     const { href, origin } = tag;
 
     tag.setAttribute('href', href.slice(origin.length));
-  });
+  }
+
   await fs.outputFile(filePath, document.documentElement.outerHTML);
 }
 
