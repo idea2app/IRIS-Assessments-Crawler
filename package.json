@@ -15,6 +15,7 @@
   },
   "scripts": {
     "crawl": "tsx src/ https://iris.epa.gov/AtoZ/?list_type=alpha public/",
-    "start": "web-server public/ -p 8080"
+    "start": "web-server public/ -p 8080",
+    "build": "pnpm crawl && cp docs/* public"
   }
 }
