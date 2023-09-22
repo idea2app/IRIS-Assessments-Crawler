@@ -1,5 +1,7 @@
 # IRIS-Assessments-Crawler
 
+[![Deploy to Production environment](https://github.com/idea2app/IRIS-Assessments-Crawler/actions/workflows/deploy-production.yml/badge.svg)][1]
+
 基于 JSDOM 实现的 Node.js 爬虫工具。
 
 爬取数据来源： https://iris.epa.gov/AtoZ/?list_type=alpha
@@ -17,3 +19,5 @@ pnpm crawl
 ```shell
 pnpm start
 ```
+
+[1]: https://github.com/idea2app/IRIS-Assessments-Crawler/actions/workflows/deploy-production.yml

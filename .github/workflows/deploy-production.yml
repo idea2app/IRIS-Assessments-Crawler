@@ -23,11 +23,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Inject Environment variables
-        run: |
-          cat > .env <<EOF
-          ${{ secrets.ENV_FILE }}
-          EOF
       - uses: docker/setup-qemu-action@v2
       - uses: docker/setup-buildx-action@v2
 
@@ -52,7 +47,7 @@ jobs:
           remote: /tmp
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USER }}
-          privateKey: ${{ secrets.SSH_KEY }}
+          password: ${{ secrets.SSH_KEY }}
 
       - name: Run Image
         uses: garygrossgarten/github-action-ssh@release
@@ -60,7 +55,7 @@ jobs:
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USER }}
-          privateKey: ${{ secrets.SSH_KEY }}
+          password: ${{ secrets.SSH_KEY }}
           command: |
             mv /tmp/docker-compose.yml /tmp/start.sh ~/
             chmod +x ~/start.sh
