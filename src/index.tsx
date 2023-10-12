@@ -2,7 +2,7 @@
 
 import { JSDOM } from 'jsdom';
 import { $, cd, fs, path } from 'zx';
-import { splitArray } from 'web-utility';
+import WU from 'web-utility';
 import { createCommand, Command } from 'commander-jsx';
 
 const downloadHTML = (url: string, fixName = false) =>
@@ -27,17 +27,7 @@ async function getSubPageURLs(filePath: string, selector: string) {
   return urls;
 }
 
-const downloadWithConcurrency = async (urls, concurrencyLimit) => {
-  for (const list of splitArray<string>(urls, concurrencyLimit)) {
-    await Promise.all(
-      list.map(async (url) => {
-        await downloadHTML(url, true);
-      })
-    );
-  }
-};
-
-const main = async (url: string, folder: string, concurrencyLimit?: number) => {
+async function main(url: string, folder: string, concurrencyLimit?: number) {
   await $`rm -rf ${folder}`;
   await $`mkdir -p ${folder}`;
   cd(folder);
@@ -57,14 +47,23 @@ const main = async (url: string, folder: string, concurrencyLimit?: number) => {
 
     const linkList = await getSubPageURLs(newName, 'tr > td:nth-child(2) > a');
 
-    await downloadWithConcurrency(linkList, concurrencyLimit);
+    for (const list of WU.splitArray(linkList, concurrencyLimit))
+      await Promise.all(list.map((url) => downloadHTML(url, true)));
   }
-};
+}
 
 Command.execute(
   <Command
-    parameters="[url] [folder] [concurrencyLimits]"
-    executor={(_, url: string, folder: string, concurrencyLimit = 5) =>
+    parameters="[options] <url> <folder>"
+    options={{
+      concurrencyLimit: {
+        shortcut: 'c',
+        parameters: '<number>',
+        pattern: /\d+/,
+        description: 'set the number of concurrency limit',
+      },
+    }}
+    executor={({ concurrencyLimit = 5 }, url: string, folder: string) =>
       main(url, folder, concurrencyLimit as number)
     }
   />,
