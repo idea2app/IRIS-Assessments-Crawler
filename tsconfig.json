@@ -7,5 +7,5 @@
     "jsxFactory": "createCommand",
     "outDir": "dist/"
   },
-  "include": ["src/index.tsx", "src/**/*.tsx"]
+  "include": ["src/**/*"]
 }

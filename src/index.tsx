@@ -85,7 +85,7 @@ Command.execute(
       concurrencyLimit: {
         shortcut: 'c',
         parameters: '<number>',
-        pattern: /\d+/,
+        pattern: /^\d+$/,
         description: 'set the number of concurrency limit',
       },
     }}
