@@ -27,17 +27,13 @@ async function getSubPageURLs(filePath: string, selector: string) {
   return urls;
 }
 
-const downloadWithConcurrency = async (urls, concurrencyLimit, downloadFn) => {
-  const downloadBatch = async (batch) => {
-    const promises = batch.map(async (url) => {
-      await downloadFn(url, true);
-    });
-    await Promise.all(promises);
-  };
-
+const downloadWithConcurrency = async (urls, concurrencyLimit = 5) => {
   for (let i = 0; i < urls.length; i += concurrencyLimit) {
-    const batch = urls.slice(i, i + concurrencyLimit);
-    await downloadBatch(batch);
+    await Promise.all(
+      urls.slice(i, i + concurrencyLimit).map(async (url) => {
+        await downloadHTML(url, true);
+      })
+    );
   }
 };
 
@@ -60,5 +56,5 @@ for (const file of files) {
 
   const linkList = await getSubPageURLs(newName, 'tr > td:nth-child(2) > a');
 
-  await downloadWithConcurrency(linkList, 5, downloadHTML);
+  await downloadWithConcurrency(linkList);
 }
