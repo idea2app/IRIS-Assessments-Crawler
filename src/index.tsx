@@ -44,7 +44,22 @@ async function modifySubPageURLs(filePath: string, selector: string) {
   await fs.outputFile(filePath, document.documentElement.outerHTML);
 }
 
-async function main(url: string, folder: string, concurrencyLimit?: number) {
+async function retryAsyncFunction(asyncFunction, maxRetries) {
+  let retries = 0;
+  let lastError = null;
+
+  while (retries < maxRetries) {
+    try {
+      return await asyncFunction();
+    } catch (error) {
+      retries++;
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
+async function main(url, folder, concurrencyLimit?) {
   await $`rm -rf ${folder}`;
   await $`mkdir -p ${folder}`;
   cd(folder);
@@ -78,6 +93,17 @@ async function main(url: string, folder: string, concurrencyLimit?: number) {
   }
 }
 
+async function mainWithRetry(
+  url: string,
+  folder: string,
+  concurrencyLimit?: number,
+  maxRetries?: number
+) {
+  await retryAsyncFunction(async () => {
+    await main(url, folder, concurrencyLimit);
+  }, maxRetries);
+}
+
 Command.execute(
   <Command
     parameters="[options] <url> <folder>"
@@ -88,9 +114,24 @@ Command.execute(
         pattern: /^\d+$/,
         description: 'set the number of concurrency limit',
       },
+      maxRetries: {
+        shortcut: 'm',
+        parameters: '<number>',
+        pattern: /^\d+$/,
+        description: 'set the number of maximum times of retries',
+      },
     }}
-    executor={({ concurrencyLimit = 5 }, url: string, folder: string) =>
-      main(url, folder, concurrencyLimit as number)
+    executor={(
+      { concurrencyLimit = 5, maxRetries = 3 },
+      url: string,
+      folder: string
+    ) =>
+      mainWithRetry(
+        url,
+        folder,
+        concurrencyLimit as number,
+        maxRetries as number
+      )
     }
   />,
   process.argv.slice(2)
