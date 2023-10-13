@@ -1,7 +1,7 @@
 #! /usr/bin/env node
 
 import { JSDOM } from 'jsdom';
-import { $, cd, fs, path } from 'zx';
+import { $, cd, fs, path, sleep } from 'zx';
 import WU from 'web-utility';
 import { createCommand, Command } from 'commander-jsx';
 
@@ -44,26 +44,37 @@ async function modifySubPageURLs(filePath: string, selector: string) {
   await fs.outputFile(filePath, document.documentElement.outerHTML);
 }
 
-async function retryAsyncFunction(asyncFunction, maxRetries) {
-  let retries = 0;
-  let lastError = null;
+async function retry<F extends (...data: any[]) => any>(
+  executor: F,
+  maxRetries,
+  interval = 0.5
+) {
+  let lastError: Error | undefined;
 
-  while (retries < maxRetries) {
+  do {
     try {
-      return await asyncFunction();
+      const data = executor();
+
+      return data instanceof Promise ? await data : data;
     } catch (error) {
-      retries++;
       lastError = error;
     }
-  }
-  throw lastError;
+    await sleep(interval);
+  } while (--maxRetries);
+
+  if (lastError) throw lastError;
 }
 
-async function main(url, folder, concurrencyLimit?) {
+async function main(
+  url: string,
+  folder: string,
+  concurrencyLimit?: number,
+  maxRetries?: number
+) {
   await $`rm -rf ${folder}`;
   await $`mkdir -p ${folder}`;
   cd(folder);
-  await downloadHTML(url);
+  await retry(async () => await downloadHTML(url), maxRetries);
 
   const root = new URL(url).pathname.slice(1);
   const files = await fs.readdir(root);
@@ -80,7 +91,11 @@ async function main(url, folder, concurrencyLimit?) {
     const linkList = await getExtras(newName, 'tr > td:nth-child(2) > a');
 
     for (const list of WU.splitArray(linkList, concurrencyLimit))
-      await Promise.all(list.map((url) => downloadHTML(url, true)));
+      await Promise.all(
+        list.map((url) =>
+          retry(async () => await downloadHTML(url, true), maxRetries)
+        )
+      );
 
     const subPageFiles = await fs.readdir('ChemicalLanding');
 
@@ -91,17 +106,6 @@ async function main(url, folder, concurrencyLimit?) {
         file.map((filePath) => modifySubPageURLs(filePath, 'li > .under'))
       );
   }
-}
-
-async function mainWithRetry(
-  url: string,
-  folder: string,
-  concurrencyLimit?: number,
-  maxRetries?: number
-) {
-  await retryAsyncFunction(async () => {
-    await main(url, folder, concurrencyLimit);
-  }, maxRetries);
 }
 
 Command.execute(
@@ -125,14 +129,7 @@ Command.execute(
       { concurrencyLimit = 5, maxRetries = 3 },
       url: string,
       folder: string
-    ) =>
-      mainWithRetry(
-        url,
-        folder,
-        concurrencyLimit as number,
-        maxRetries as number
-      )
-    }
+    ) => main(url, folder, concurrencyLimit as number, maxRetries as number)}
   />,
   process.argv.slice(2)
 );
