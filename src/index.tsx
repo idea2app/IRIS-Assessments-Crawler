@@ -1,7 +1,7 @@
 #! /usr/bin/env node
 
 import { JSDOM } from 'jsdom';
-import { $, cd, fs, path } from 'zx';
+import { $, cd, fs, path, sleep } from 'zx';
 import WU from 'web-utility';
 import { createCommand, Command } from 'commander-jsx';
 
@@ -44,11 +44,37 @@ async function modifySubPageURLs(filePath: string, selector: string) {
   await fs.outputFile(filePath, document.documentElement.outerHTML);
 }
 
-async function main(url: string, folder: string, concurrencyLimit?: number) {
+async function retry<F extends (...data: any[]) => any>(
+  executor: F,
+  maxRetries,
+  interval = 0.5
+) {
+  let lastError: Error | undefined;
+
+  do {
+    try {
+      const data = executor();
+
+      return data instanceof Promise ? await data : data;
+    } catch (error) {
+      lastError = error;
+    }
+    await sleep(interval);
+  } while (--maxRetries);
+
+  if (lastError) throw lastError;
+}
+
+async function main(
+  url: string,
+  folder: string,
+  concurrencyLimit?: number,
+  maxRetries?: number
+) {
   await $`rm -rf ${folder}`;
   await $`mkdir -p ${folder}`;
   cd(folder);
-  await downloadHTML(url);
+  await retry(() => downloadHTML(url), maxRetries);
 
   const root = new URL(url).pathname.slice(1);
   const files = await fs.readdir(root);
@@ -65,7 +91,9 @@ async function main(url: string, folder: string, concurrencyLimit?: number) {
     const linkList = await getExtras(newName, 'tr > td:nth-child(2) > a');
 
     for (const list of WU.splitArray(linkList, concurrencyLimit))
-      await Promise.all(list.map((url) => downloadHTML(url, true)));
+      await Promise.all(
+        list.map((url) => retry(() => downloadHTML(url, true), maxRetries))
+      );
 
     const subPageFiles = await fs.readdir('ChemicalLanding');
 
@@ -88,10 +116,18 @@ Command.execute(
         pattern: /^\d+$/,
         description: 'set the number of concurrency limit',
       },
+      maxRetries: {
+        shortcut: 'm',
+        parameters: '<number>',
+        pattern: /^\d+$/,
+        description: 'set the number of maximum times of retries',
+      },
     }}
-    executor={({ concurrencyLimit = 5 }, url: string, folder: string) =>
-      main(url, folder, concurrencyLimit as number)
-    }
+    executor={(
+      { concurrencyLimit = 5, maxRetries = 3 },
+      url: string,
+      folder: string
+    ) => main(url, folder, concurrencyLimit as number, maxRetries as number)}
   />,
   process.argv.slice(2)
 );
