@@ -74,7 +74,7 @@ async function main(
   await $`rm -rf ${folder}`;
   await $`mkdir -p ${folder}`;
   cd(folder);
-  await retry(async () => await downloadHTML(url), maxRetries);
+  await retry(() => downloadHTML(url), maxRetries);
 
   const root = new URL(url).pathname.slice(1);
   const files = await fs.readdir(root);
@@ -92,9 +92,7 @@ async function main(
 
     for (const list of WU.splitArray(linkList, concurrencyLimit))
       await Promise.all(
-        list.map((url) =>
-          retry(async () => await downloadHTML(url, true), maxRetries)
-        )
+        list.map((url) => retry(() => downloadHTML(url, true), maxRetries))
       );
 
     const subPageFiles = await fs.readdir('ChemicalLanding');
